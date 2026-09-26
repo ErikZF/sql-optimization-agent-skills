@@ -2,3 +2,8 @@ __pycache__/
 *.pyc
 resultados/
 historial/
+# generados al correr tests/entorno
+tests/entorno/.claude/
+tests/entorno/version*_*.sql
+tests/entorno/mejor*
+tests/entorno/ideas.json
