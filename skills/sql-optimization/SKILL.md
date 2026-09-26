@@ -5,7 +5,7 @@ description: 'Universal SQL performance optimization assistant for comprehensive
 
 # SQL Performance Optimization Assistant
 
-SQL perf optimization for ${selection} (whole project if no selection). Universal techniques for MySQL, PostgreSQL, SQL Server, Oracle, other SQL DBs.
+SQL perf optimization for the query or code the user provides (whole project if none given). Universal techniques for MySQL, PostgreSQL, SQL Server, Oracle, other SQL DBs.
 
 ## Core Optimization Areas
 
@@ -83,13 +83,16 @@ LEFT JOIN products p ON oi.product_id = p.id
 WHERE o.created_at > '2024-01-01'
   AND c.status = 'active';
 
--- GOOD: Optimized JOIN with filtering
+-- GOOD: Same result, explicit columns, honest JOIN types
+-- customers → INNER is safe: WHERE c.status = 'active' already drops rows where c is NULL.
+-- order_items / products stay LEFT: INNER would drop orders with no items (different result).
 SELECT o.id, o.total_amount, c.name, p.product_name
 FROM orders o
 INNER JOIN customers c ON o.customer_id = c.id AND c.status = 'active'
-INNER JOIN order_items oi ON o.id = oi.order_id
-INNER JOIN products p ON oi.product_id = p.id
+LEFT JOIN order_items oi ON o.id = oi.order_id
+LEFT JOIN products p ON oi.product_id = p.id
 WHERE o.created_at > '2024-01-01';
+-- Rule: turn LEFT into INNER only when WHERE already rejects NULLs from that table.
 ```
 
 ### Pagination Optimization
@@ -147,10 +150,15 @@ JOIN another_table at ON lt.id = at.ref_id;
 SELECT * FROM orders 
 WHERE UPPER(customer_email) = 'JOHN@EXAMPLE.COM';
 
--- GOOD: Index-friendly WHERE clause
+-- GOOD (case-insensitive collation: SQL Server / MySQL default) — same result, uses index on customer_email
 SELECT * FROM orders 
 WHERE customer_email = 'john@example.com';
--- Consider: CREATE INDEX idx_orders_email ON orders(LOWER(customer_email));
+
+-- GOOD (case-sensitive: PostgreSQL / Oracle) — keep the predicate, index the same expression
+CREATE INDEX idx_orders_email_upper ON orders (UPPER(customer_email));
+SELECT * FROM orders 
+WHERE UPPER(customer_email) = 'JOHN@EXAMPLE.COM';
+-- Never drop the function if it changes which rows match.
 ```
 
 ### OR vs UNION Optimization
@@ -226,15 +234,16 @@ WHERE status IN ('pending', 'processing');
 -- Generic approach to identify slow queries
 -- (Specific syntax varies by database)
 
--- For MySQL:
+-- For MySQL (needs slow_query_log = ON and log_output = 'TABLE'):
 SELECT query_time, lock_time, rows_sent, rows_examined, sql_text
 FROM mysql.slow_log
 ORDER BY query_time DESC;
+-- Without table logging: performance_schema.events_statements_summary_by_digest ORDER BY SUM_TIMER_WAIT DESC
 
--- For PostgreSQL:
-SELECT query, calls, total_time, mean_time
+-- For PostgreSQL 13+ (needs pg_stat_statements extension; before 13: total_time / mean_time):
+SELECT query, calls, total_exec_time, mean_exec_time
 FROM pg_stat_statements
-ORDER BY total_time DESC;
+ORDER BY total_exec_time DESC;
 
 -- For SQL Server:
 SELECT 

@@ -11,8 +11,8 @@ Rol: orquestador. Tú generas ideas, eliges, iteras. Subagentes implementan + mi
 - `query.sql`: consulta original. NUNCA modificar.
 - `pruebas.sh`: prueba oficial. Leer antes de empezar: args, salida, si valida resultado.
 - `version1_query.sql` … `version5_query.sql`: alternativas iteración actual.
-- `mejor_query.sql` + `mejor.json`: mejor histórica. Si existen al iniciar → punto de partida (no `query.sql`).
-- `historial/iterN/`: copia versiones + `resultados.json` de cada iteración.
+- `mejor_query.sql` + `mejor.json`: mejor histórica. Si existen al iniciar → punto de partida (no `query.sql`). `mejor_setup.sql` / `mejor_teardown.sql` si la mejor necesita índice.
+- `historial/iterN/`: versiones, resultados e `ideas.json` de cada iteración (se MUEVEN ahí al evaluar; carpeta de trabajo queda limpia).
 - `versionN_setup.sql` / `versionN_teardown.sql`: solo si idea cambia esquema (índices).
 
 ## Flujo
@@ -20,7 +20,7 @@ Rol: orquestador. Tú generas ideas, eliges, iteras. Subagentes implementan + mi
 ### 0. Preparar
 1. `docker ps` → contenedor SQL Server. Leer `pruebas.sh`.
 2. Base = `mejor_query.sql` si existe, si no `query.sql`.
-3. Medir base: `bash <skill>/scripts/medir.sh <base> 3` → `resultados/<base>.json` (mediana ms, logical reads, checksum). `<skill>` = carpeta de este SKILL.md; correr desde carpeta del proyecto.
+3. Medir base: `bash <skill>/scripts/medir.sh <base> 3` → `resultados/<base>.json` (mediana ms reloj, mediana ms SQL Server, logical reads, checksum). Si existe `mejor_setup.sql` se aplica y revierte solo. `<skill>` = carpeta de este SKILL.md; correr desde carpeta del proyecto.
 4. Plan real / `SET STATISTICS IO, TIME ON` de base → ubicar operador caro (scan grande, lookups masivos, Sort con spill, estimado vs real muy distinto, plan serial raro, CTE repetida).
 
 ### 1. Generar 5 ideas (iteración 1)
@@ -38,21 +38,23 @@ Base: {ruta_base}. Idea: {idea}. Por qué: {motivo}.
 2. Si idea crea índice/estadística: version{N}_setup.sql (CREATE) + version{N}_teardown.sql (DROP). No tocar esquema fuera de esos archivos.
 3. Mide: bash {skill}/scripts/medir.sh version{N}_query.sql 3
 4. Devuelve SOLO JSON:
-{"version":N,"idea":"...","ms_mediana":0,"logical_reads":0,"filas":0,"checksum":"...","ok":true,"notas":"plan: operadores clave"}
+{"version":N,"idea":"...","ms_mediana":0,"sql_ms_mediana":0,"logical_reads":0,"filas":0,"checksum":"...","ok":true,"notas":"plan: operadores clave"}
 Si falla o resultado distinto: ok=false + error.
 ```
 
 Reglas subagentes:
 - Medición serializada: `medir.sh` usa `flock`. Paralelo al escribir, serie al medir → tiempos no se contaminan.
 - Setup/teardown corren dentro del lock. Tiempo de CREATE INDEX va aparte en `notas` (costo mantenimiento).
+- Si setup o teardown falla (o falta `SQL_EXEC`), `medir.sh` marca `ok=false`: no se mide una versión sin su índice.
+- Cada versión se mide solo con SU setup. Si parte de una base que usa `mejor_setup.sql`, copiar ese índice a su propio `version{N}_setup.sql` / `_teardown.sql`.
 
 ### 3. Evaluar
 - Descartar `ok=false` o checksum ≠ baseline.
 - Guardar ideas en `ideas.json` (`{"1":"idea",...}`).
-- `python3 <skill>/scripts/elegir.py --base resultados/<base>.json --iter 1 --ideas ideas.json` → tabla ranking (ms_mediana, desempate logical_reads), valida checksum vs base, archiva `historial/iter1/`, y si ganadora mejora >5% copia a `mejor_query.sql` (+ setup) y actualiza `mejor.json`.
+- `python3 <skill>/scripts/elegir.py --base resultados/<base>.json --iter 1 --ideas ideas.json` → tabla ranking (métrica `sql_ms_mediana` si todas la tienen, si no `ms_mediana`; desempate logical_reads), valida checksum vs base, si ganadora mejora >5% a la base copia a `mejor_query.sql` (+ setup/teardown) y actualiza `mejor.json`. Al final MUEVE versiones y resultados a `historial/iter1/`.
 
 ### 4. Iterar 1 vez (iteración 2)
-- 5 ideas nuevas desde ganadora: combinar top-2 compatibles, afinar la mejor (índice más angosto, INCLUDE justo, forma predicado), probar idea descartada si fallo fue arreglable.
+- 5 ideas nuevas desde ganadora (detalle de todas en `historial/iter1/`): combinar top-2 compatibles, afinar la mejor (índice más angosto, INCLUDE justo, forma predicado), probar idea descartada si fallo fue arreglable.
 - Repetir pasos 2–3 sobre nueva base (`mejor_query.sql`; medir base de nuevo), `--iter 2`.
 - Parar tras iteración 2. Mejor queda en `mejor_query.sql` para futuras corridas.
 
@@ -68,5 +70,5 @@ Tabla: versión | idea | ms | logical reads | Δ% vs original | ok. Luego: ganad
 
 ## Recursos
 - `references/libro.md`: catálogo ideas + cifras cap. 2 y 5. Leer en paso 1.
-- `scripts/medir.sh`: wrapper `pruebas.sh` + lock + mediana + checksum. Env: `PRUEBAS`, `SQL_EXEC` (sqlcmd en contenedor para setup/teardown), `LOCK`.
-- `scripts/elegir.py`: ranking + historial + actualiza `mejor.json`.
+- `scripts/medir.sh`: wrapper `pruebas.sh` + lock + mediana + checksum. Env: `PRUEBAS`, `SQL_EXEC` (sqlcmd en contenedor; obligatorio si hay setup/teardown), `LOCK`. Requiere `flock` (Linux/WSL/contenedor).
+- `scripts/elegir.py`: ranking + actualiza `mejor.json` + mueve iteración a `historial/`.
