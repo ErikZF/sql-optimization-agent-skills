@@ -303,3 +303,6 @@ ORDER BY avg_elapsed_time DESC;
 6. **Iterate**: Regular perf review + optimization
 
 Focus measurable gains. Always test with realistic data volumes + query patterns.
+
+<!-- Adapted from github/awesome-copilot (MIT, Copyright GitHub, Inc.). See LICENSE.txt. -->
+
