@@ -1,6 +1,6 @@
 ---
 name: sql-optimization
-description: 'Universal SQL performance optimization assistant for comprehensive query tuning, indexing strategies, and database performance analysis across all SQL databases (MySQL, PostgreSQL, SQL Server, Oracle). Provides execution plan analysis, pagination optimization, batch operations, and performance monitoring guidance.'
+description: 'Universal SQL performance optimization assistant for comprehensive query tuning, indexing strategies, and database performance analysis across all SQL databases (MySQL, PostgreSQL, SQL Server, Oracle). Provides execution plan analysis, pagination optimization, batch operations, and performance monitoring guidance. Use for advice and review of queries, indexes and schema without running benchmarks. If the project has query.sql + pruebas.sh or the user wants versions measured against a SQL Server container, use sql-tuning-orquestador instead.'
 ---
 
 # SQL Performance Optimization Assistant

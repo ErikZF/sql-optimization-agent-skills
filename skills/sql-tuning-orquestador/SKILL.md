@@ -1,6 +1,6 @@
 ---
 name: sql-tuning-orquestador
-description: Orquestador de tuning T-SQL con 5 subagentes paralelos. Toma query.sql, genera 5 ideas (Ben-Gan, T-SQL Querying cap. 2 y 5), subagentes escriben version1..5_query.sql, mide con contenedor + pruebas.sh, itera 1 vez y guarda mejor versión para próximas corridas. Usar SIEMPRE que usuario pida optimizar/afinar/acelerar consulta SQL Server, comparar alternativas de query, reducir tiempo de ejecución o logical reads, o mencione query.sql, pruebas.sh o versionN_query.sql, aunque no diga "orquestador".
+description: Orquestador de tuning T-SQL que MIDE versiones reales. Genera 5 ideas (Ben-Gan, T-SQL Querying cap. 2 y 5), 5 subagentes escriben version1..5_query.sql, mide cada una en contenedor SQL Server con pruebas.sh, itera 1 vez y guarda la mejor en mejor_query.sql. Usar cuando el proyecto tenga query.sql + pruebas.sh, o el usuario pida medir/comparar/benchmark de versiones de una consulta SQL Server. Para consejos o revisión sin entorno de pruebas, usar sql-optimization.
 ---
 
 # Orquestador tuning T-SQL

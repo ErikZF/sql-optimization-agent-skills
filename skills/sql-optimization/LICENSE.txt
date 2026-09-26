@@ -2,7 +2,8 @@ This skill is adapted from "sql-optimization" in github/awesome-copilot:
 https://github.com/github/awesome-copilot/tree/main/skills/sql-optimization
 
 Changes: corrected non-equivalent JOIN and WHERE examples, updated
-PostgreSQL 13+ / MySQL monitoring queries, removed Copilot-only variables.
+PostgreSQL 13+ / MySQL monitoring queries, removed Copilot-only variables,
+narrowed the description so it hands off to sql-tuning-orquestador.
 
 Original license:
 
