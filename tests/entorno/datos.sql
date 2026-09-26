@@ -5,7 +5,9 @@ IF DB_ID('TuningDB') IS NULL CREATE DATABASE TuningDB;
 GO
 USE TuningDB;
 GO
-IF OBJECT_ID('dbo.Orders') IS NOT NULL AND (SELECT COUNT_BIG(*) FROM dbo.Orders) = 1000000
+-- Contar desde el catálogo: nombrar dbo.Orders directo falla si la tabla aún no existe.
+IF (SELECT SUM(rows) FROM sys.partitions
+    WHERE object_id = OBJECT_ID('dbo.Orders') AND index_id IN (0, 1)) = 1000000
 BEGIN
   PRINT 'TuningDB ya cargada.';
   SET NOEXEC ON;
